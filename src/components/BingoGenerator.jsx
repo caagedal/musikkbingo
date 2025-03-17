@@ -8,8 +8,27 @@ export default function BingoGenerator() {
   const [bingoCards, setBingoCards] = useState([]);
   const [playlistUrl, setPlaylistUrl] = useState("");
 
+  const getSpotifyAccessToken = async () => {
+    const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+    const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET;
+    try {
+      const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: "Basic " + btoa(`${clientId}:${clientSecret}`),
+        },
+        body: "grant_type=client_credentials",
+      });
+      const data = await response.json();
+      return data.access_token;
+    } catch (error) {
+      console.error("Feil ved henting av access token:", error);
+    }
+  };
+
   const fetchSpotifySongs = async () => {
-    const accessToken = "YOUR_SPOTIFY_ACCESS_TOKEN"; // Hent dette via autentisering
+    const accessToken = await getSpotifyAccessToken();
     const playlistID = playlistUrl.split("/playlist/")[1]?.split("?")[0];
 
     if (!playlistID) {
