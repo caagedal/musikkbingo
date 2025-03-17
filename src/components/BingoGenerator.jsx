@@ -201,7 +201,31 @@ export default function BingoGenerator() {
     }
   };
 
-  // Bestem antall kort per rad i layouten
+    // Hjelpefunksjon for å forkorte lange sangtitler
+    const shortenSongTitle = (title, maxLength = 40) => {
+      if (!title) return "";
+      
+      // Hvis tittelen har " - " format (artist - sang), behandle dem separat
+      if (title.includes(" - ")) {
+        const [artist, song] = title.split(" - ");
+        
+        // Forkorte både artist og sangtittel
+        const shortenedArtist = artist.length > maxLength/2 
+          ? artist.substring(0, Math.floor(maxLength/3)) + "..." 
+          : artist;
+          
+        const shortenedSong = song.length > maxLength/2 
+          ? song.substring(0, Math.floor(maxLength/2)) + "..." 
+          : song;
+          
+        return `${shortenedArtist} - ${shortenedSong}`;
+      }
+      
+      // Standard forkortning for titler uten " - "
+      return title.length > maxLength 
+        ? title.substring(0, maxLength-3) + "..." 
+        : title;
+    };
   const getGridClass = () => {
     switch (cardSize) {
       case "small": return "grid-cols-2 md:grid-cols-3";
@@ -437,7 +461,7 @@ export default function BingoGenerator() {
                       <div key={cellIndex} className="bingo-cell" onClick={() => toggleCell(cardIndex, cellIndex)}>
                         <div className={`cell-content ${isSelected ? 'bg-green-200 selected' : ''}`}>
                           <div className="cell-text">
-                            {song}
+                            {shortenSongTitle(song)}
                           </div>
                         </div>
                       </div>
