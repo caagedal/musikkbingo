@@ -1,92 +1,151 @@
 /* BingoGenerator.css */
-.max-w-a4 {
-  max-width: 595px; /* A4 bredde i punkter */
+:root {
+  --accent-color: #333;
+  --border-color: #000;
+  --background-color: #fff;
+  --selected-color: #f2f2f2;
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
 }
 
-/* Rutenett-stiler for å sikre helt like størrelser på rutene */
+/* A4 width constraint */
+.max-w-a4 {
+  max-width: 595px; /* A4 width in points */
+}
+
+/* Card container styling */
+.card-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Main card styling */
+.bingo-card {
+  background-color: var(--background-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: transform 0.2s ease;
+}
+
+.bingo-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Grid styling */
 .bingo-grid {
   display: grid;
   width: 100%;
   grid-gap: 0;
-}
-
-/* Denne metoden sikrer at cellene er perfekt kvadratiske */
-.bingo-cell {
-  position: relative;
-  width: 100%;
-  padding-bottom: 100%; /* Dette gjør at høyden er lik bredden */
-  border: 1px solid black;
-}
-
-/* Innholdet i hver celle posisjoneres absolutt for å fylle cellen */
-.cell-content {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  right: 1px;
-  bottom: 1px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 4px;
   overflow: hidden;
-  background-color: white;
-  padding: 2px;
 }
 
-/* Styling av teksten */
-.cell-text {
-  max-width: 100%;
-  max-height: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-  word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-/* Header-celler i toppen */
+/* Header styling */
 .header-cell {
-  border: 1px solid black;
-  border-bottom: 2px solid black;
+  background-color: var(--accent-color);
+  color: var(--background-color);
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-/* For utskrift */
-@media print {
-  body {
-    margin: 0;
-    padding: 0;
-  }
-  
-  .card-container {
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  
-  .bingo-cell {
-    border: 1px solid black !important;
-    print-color-adjust: exact;
-  }
-  
-  .header-cell {
-    border: 1px solid black !important;
-    border-bottom: 2px solid black !important;
-    print-color-adjust: exact;
-  }
-  
-  .selected {
-    background-color: #c6f6d5 !important;
-    print-color-adjust: exact;
-  }
+/* Cell styling for perfect squares */
+.bingo-cell {
+  position: relative;
+  width: 100%;
+  padding-bottom: 100%; /* Makes height equal to width */
+  transition: background-color 0.2s ease;
 }
 
-/* Font-størrelse basert på kortstørrelse */
+/* Cell content positioning */
+.cell-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--background-color);
+  border: 1px solid #eaeaea;
+  transition: all 0.2s ease;
+  padding: 2px; /* Add minimal padding */
+}
+
+/* Selected cell styling */
+.cell-content.selected {
+  background-color: var(--selected-color);
+  position: relative;
+}
+
+.cell-content.selected::after {
+  content: "✓";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 12px;
+  color: var(--accent-color);
+}
+
+/* Text styling */
+.cell-text {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  text-align: center;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Remove fixed height constraints */
+  overflow: visible;
+  /* Remove line clamping */
+  -webkit-line-clamp: initial;
+  -webkit-box-orient: initial;
+}
+
+/* Card title */
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--accent-color);
+  text-align: center;
+}
+
+/* Button styling */
+.action-button {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.5px;
+}
+
+.action-button:hover {
+  background-color: #000;
+}
+
+.action-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Font sizing based on card size */
 .card-small .cell-text {
   font-size: 0.65rem;
 }
@@ -99,7 +158,108 @@
   font-size: 0.9rem;
 }
 
-/* Responsiv font-størrelse */
+/* Generator panel styling */
+.generator-panel {
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 2rem;
+}
+
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--accent-color);
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: border-color 0.2s ease;
+}
+
+.input-field:focus {
+  border-color: var(--accent-color);
+  outline: none;
+}
+
+.select-field {
+  appearance: none;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23333333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px;
+  padding-right: 2.5rem;
+}
+
+/* Error message */
+.error-message {
+  color: #e53e3e;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Loading state */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1rem 0;
+  color: var(--accent-color);
+}
+
+/* Print styles */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .card-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .bingo-card {
+    box-shadow: none;
+    border: 2px solid black;
+  }
+  
+  .bingo-cell {
+    border: 1px solid black !important;
+    print-color-adjust: exact;
+  }
+  
+  .header-cell {
+    background-color: black !important;
+    color: white !important;
+    border: 1px solid black !important;
+    print-color-adjust: exact;
+  }
+  
+  .cell-content.selected {
+    background-color: #f2f2f2 !important;
+    print-color-adjust: exact;
+  }
+  
+  .cell-content.selected::after {
+    color: black !important;
+    print-color-adjust: exact;
+  }
+}
+
+/* Responsive styles */
 @media screen and (max-width: 767px) {
   .card-small .cell-text {
     font-size: 0.6rem;
@@ -108,5 +268,9 @@
   .card-medium .cell-text,
   .card-large .cell-text {
     font-size: 0.7rem;
+  }
+  
+  .generator-panel {
+    padding: 1rem;
   }
 }
