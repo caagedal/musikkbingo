@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { PDFDocument } from "pdf-lib";
-import "../BingoGenerator.css";
+import "../BingoGenerator.css"; // Importerer ekstra CSS
 
 export default function BingoGenerator() {
   const [songs, setSongs] = useState([]);
@@ -185,7 +185,7 @@ export default function BingoGenerator() {
     }
     
     return header.map((letter, index) => (
-      <div key={`header-${index}`} className="font-bold text-center p-2 border-b-2 border-black">
+      <div key={`header-${index}`} className="header-cell">
         {letter}
       </div>
     ));
@@ -194,10 +194,10 @@ export default function BingoGenerator() {
   // Bestem størrelsen på kortene
   const getCardSizeClass = () => {
     switch (cardSize) {
-      case "small": return "w-64 text-xs";
-      case "medium": return "w-80 text-sm";
-      case "large": return "w-full max-w-a4 text-base"; // A4-optimalisert størrelse
-      default: return "w-80 text-sm"; // medium
+      case "small": return "w-64 card-small";
+      case "medium": return "w-80 card-medium";
+      case "large": return "w-full max-w-a4 card-large"; // A4-optimalisert størrelse
+      default: return "w-80 card-medium"; // medium
     }
   };
 
@@ -417,31 +417,33 @@ export default function BingoGenerator() {
               <h2 className="text-lg font-bold mb-2">Kort #{cardIndex + 1}</h2>
               <div
                 id={`bingoCard-${cardIndex}`}
-                className={`grid border-2 border-black p-4 ${getCardSizeClass()} mx-auto bg-white rounded shadow-md print:shadow-none`}
-                style={{ 
-                  gridTemplateColumns: `repeat(${card.dimensions.cols}, 1fr)`,
-                  gridTemplateRows: `auto repeat(${card.dimensions.rows}, 1fr)` // auto for header, 1fr for cells
-                }}
+                className={`${getCardSizeClass()} mx-auto bg-white rounded shadow-md print:shadow-none border-2 border-black p-2`}
               >
-                {/* Header row */}
-                {generateHeader(card.dimensions.cols)}
-                
-                {/* Kortets innhold */}
-                {card.songs.map((song, cellIndex) => {
-                  const isSelected = selectedCells[`${cardIndex}-${cellIndex}`];
+                <div 
+                  className="bingo-grid"
+                  style={{ 
+                    gridTemplateColumns: `repeat(${card.dimensions.cols}, 1fr)`,
+                    gridTemplateRows: `auto repeat(${card.dimensions.rows}, 1fr)`
+                  }}
+                >
+                  {/* Header row */}
+                  {generateHeader(card.dimensions.cols)}
                   
-                  return (
-                    <div
-                      key={cellIndex}
-                      className={`border p-2 cursor-pointer hover:bg-gray-100 ${
-                        isSelected ? 'bg-green-200' : ''
-                      } flex items-center justify-center text-center overflow-hidden aspect-square`}
-                      onClick={() => toggleCell(cardIndex, cellIndex)}
-                    >
-                      <span>{song}</span>
-                    </div>
-                  );
-                })}
+                  {/* Kortets innhold */}
+                  {card.songs.map((song, cellIndex) => {
+                    const isSelected = selectedCells[`${cardIndex}-${cellIndex}`];
+                    
+                    return (
+                      <div key={cellIndex} className="bingo-cell" onClick={() => toggleCell(cardIndex, cellIndex)}>
+                        <div className={`cell-content ${isSelected ? 'bg-green-200 selected' : ''}`}>
+                          <div className="cell-text">
+                            {song}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               
               <button
