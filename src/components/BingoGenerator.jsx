@@ -344,8 +344,11 @@ export default function BingoGenerator() {
   // Funksjonen for å lagre JPG er fjernet og vi beholder bare PDF-eksport
 
   return (
-    <div className="p-4 text-center max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Spotify Musikk-Bingo Generator</h1>
+    <div className="p-4 max-w-6xl mx-auto">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold mb-8">Musikk Bingo</h1>
+        <h2>Hent inn spillelister direkte fra spotify og generer bingo kort, easy peasy!</h2>
+      </div>
       
       <div className="generator-panel">
         <div className="mb-6">
