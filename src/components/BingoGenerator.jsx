@@ -7,6 +7,11 @@ export default function BingoGenerator() {
   const [numCards, setNumCards] = useState(1);
   const [bingoCards, setBingoCards] = useState([]);
   const [playlistUrl, setPlaylistUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selectedCells, setSelectedCells] = useState({});
+  // Valg for brettstørrelse
+  const [gridSize, setGridSize] = useState("5x5");
+  const [cardSize, setCardSize] = useState("medium"); // small, medium, large
 
   const getSpotifyAccessToken = async () => {
     const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
@@ -28,141 +33,379 @@ export default function BingoGenerator() {
   };
 
   const fetchSpotifySongs = async () => {
+    if (!playlistUrl) {
+      alert("Skriv inn en Spotify spilleliste-URL");
+      return;
+    }
+
+    setLoading(true);
     const accessToken = await getSpotifyAccessToken();
     const playlistID = playlistUrl.split("/playlist/")[1]?.split("?")[0];
 
     if (!playlistID) {
       alert("Ugyldig Spotify spilleliste-URL");
+      setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch(
-        `https://api.spotify.com/v1/playlists/${playlistID}/tracks`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      const data = await response.json();
-      setSongs(data.items.map((item) => item.track.name));
+      let allTracks = [];
+      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistID}/tracks?limit=100`;
+      
+      // Hent alle sanger fra spillelisten (håndterer spillelister med mer enn 100 sanger)
+      while (nextUrl) {
+        const response = await fetch(nextUrl, { 
+          headers: { Authorization: `Bearer ${accessToken}` } 
+        });
+        const data = await response.json();
+        
+        if (data.items) {
+          allTracks = [...allTracks, ...data.items];
+        }
+        
+        nextUrl = data.next;
+      }
+      
+      // Filtrer ut null-spor og hent artist + navn
+      const trackList = allTracks
+        .filter(item => item.track)
+        .map(item => {
+          const artistName = item.track.artists && item.track.artists.length > 0 
+            ? item.track.artists[0].name 
+            : "";
+          return `${artistName} - ${item.track.name}`;
+        });
+      
+      setSongs(trackList);
     } catch (error) {
       console.error("Feil ved henting av spilleliste:", error);
+      alert("Det oppstod en feil ved henting av spillelisten. Sjekk at URL er korrekt.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const shuffleArray = (array) => {
-    for (let i = array.length - 1; i > 0; i--) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
     }
+    return newArray;
+  };
+
+  // Hjelpefunksjon for å få dimensjoner fra gridSize-verdi
+  const getGridDimensions = (size) => {
+    const [rows, cols] = size.split('x').map(num => parseInt(num, 10));
+    return { rows, cols };
   };
 
   const generateBingoCards = () => {
-    if (songs.length < 25) {
-      alert("Du må ha minst 25 sanger!");
+    const { rows, cols } = getGridDimensions(gridSize);
+    const requiredSongs = rows * cols;
+    
+    if (songs.length < requiredSongs) {
+      alert(`Du må ha minst ${requiredSongs} sanger! Du har ${songs.length} sanger.`);
       return;
     }
+    
+    // Begrens antall kort til mellom 1 og 50
+    const cardCount = Math.min(Math.max(1, numCards), 50);
+    
     let newCards = [];
-    for (let i = 0; i < numCards; i++) {
-      let shuffledSongs = [...songs];
-      shuffleArray(shuffledSongs);
-      newCards.push(shuffledSongs.slice(0, 25));
+    for (let i = 0; i < cardCount; i++) {
+      let shuffledSongs = shuffleArray(songs);
+      let cardSongs = shuffledSongs.slice(0, requiredSongs);
+      
+      newCards.push({
+        songs: cardSongs,
+        dimensions: { rows, cols }
+      });
     }
+    
     setBingoCards(newCards);
+    setSelectedCells({}); // Nullstill valgte celler
   };
 
-  async function saveAsPDF() {
-    const bingoCard = document.getElementById("bingoCard");
-    if (!bingoCard) {
-      alert("Fant ikke bingo-brettet!");
-      return;
-    }
-
-    const canvas = await html2canvas(bingoCard);
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 800]);
-    const jpgImage = await pdfDoc.embedPng(imgData);
-    page.drawImage(jpgImage, {
-      x: 50,
-      y: 50,
-      width: 500,
-      height: 700,
+  const toggleCell = (cardIndex, cellIndex) => {
+    setSelectedCells(prev => {
+      const key = `${cardIndex}-${cellIndex}`;
+      const updatedCells = { ...prev };
+      
+      updatedCells[key] = !prev[key];
+      
+      return updatedCells;
     });
+  };
 
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "bingo.pdf";
-    link.click();
-  }
+  const saveAllAsPDF = async () => {
+    if (bingoCards.length === 0) {
+      alert("Generer bingokort først!");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const pdfDoc = await PDFDocument.create();
+      
+      // Lagre hvert kort som en side i PDF-en
+      for (let i = 0; i < bingoCards.length; i++) {
+        const cardElement = document.getElementById(`bingoCard-${i}`);
+        if (!cardElement) continue;
+        
+        const canvas = await html2canvas(cardElement, {
+          scale: 2, // Høyere kvalitet
+          useCORS: true,
+          logging: false
+        });
+        
+        const imgData = canvas.toDataURL("image/png");
+        const page = pdfDoc.addPage([600, 700]);
+        const pngImage = await pdfDoc.embedPng(imgData);
+        
+        // Beregn riktig størrelse for bildet
+        const { width, height } = pngImage.size();
+        const aspectRatio = width / height;
+        
+        const maxWidth = 500;
+        const maxHeight = 600;
+        let drawWidth = maxWidth;
+        let drawHeight = drawWidth / aspectRatio;
+        
+        if (drawHeight > maxHeight) {
+          drawHeight = maxHeight;
+          drawWidth = drawHeight * aspectRatio;
+        }
+        
+        page.drawImage(pngImage, {
+          x: (page.getWidth() - drawWidth) / 2,
+          y: (page.getHeight() - drawHeight) / 2,
+          width: drawWidth,
+          height: drawHeight,
+        });
+      }
+      
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "musikkbingo.pdf";
+      link.click();
+    } catch (error) {
+      console.error("Feil ved generering av PDF:", error);
+      alert("Det oppstod en feil ved lagring av PDF.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  async function saveAsJPG() {
-    const bingoCard = document.getElementById("bingoCard");
-    if (!bingoCard) {
+  const saveCardAsJPG = async (cardIndex) => {
+    const cardElement = document.getElementById(`bingoCard-${cardIndex}`);
+    if (!cardElement) {
       alert("Fant ikke bingo-brettet!");
       return;
     }
+    
+    setLoading(true);
+    try {
+      const canvas = await html2canvas(cardElement, {
+        scale: 2, // Høyere kvalitet
+        useCORS: true
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      
+      const link = document.createElement("a");
+      link.href = imgData;
+      link.download = `musikkbingo-kort-${cardIndex + 1}.jpg`;
+      link.click();
+    } catch (error) {
+      console.error("Feil ved generering av JPG:", error);
+      alert("Det oppstod en feil ved lagring av bildet.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const canvas = await html2canvas(bingoCard);
-    const imgData = canvas.toDataURL("image/jpeg");
+  // Generer header basert på antall kolonner
+  const generateHeader = (cols) => {
+    // Standardheader for 5 kolonner (B-I-N-G-O)
+    const defaultHeader = ['B', 'I', 'N', 'G', 'O'];
+    
+    // For andre størrelser, bruker vi alfabetet
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    
+    let header;
+    if (cols === 5) {
+      header = defaultHeader;
+    } else {
+      header = alphabet.slice(0, cols).split('');
+    }
+    
+    return header.map((letter, index) => (
+      <div key={`header-${index}`} className="font-bold text-center p-2 border-b-2 border-black">
+        {letter}
+      </div>
+    ));
+  };
+  const getCardSizeClass = () => {
+    switch (cardSize) {
+      case "small": return "w-64 text-xs";
+      case "large": return "w-full max-w-xl text-base";
+      default: return "w-80 text-sm"; // medium
+    }
+  };
 
-    const link = document.createElement("a");
-    link.href = imgData;
-    link.download = "bingo.jpg";
-    link.click();
-  }
+  // Bestem antall kort per rad i layouten
+  const getGridClass = () => {
+    switch (cardSize) {
+      case "small": return "grid-cols-2 md:grid-cols-3";
+      case "large": return "grid-cols-1";
+      default: return "grid-cols-1 md:grid-cols-2"; // medium
+    }
+  };
 
   return (
-    <div className="p-4 text-center">
-      <h1 className="text-2xl font-bold">Spotify Musikk-Bingo Generator</h1>
-      <input
-        type="text"
-        placeholder="Spotify spilleliste-URL"
-        value={playlistUrl}
-        onChange={(e) => setPlaylistUrl(e.target.value)}
-        className="border p-2 m-2 w-full"
-      />
-      <button onClick={fetchSpotifySongs} className="bg-blue-500 text-white p-2 m-2">
-        Hent sanger
-      </button>
-      <br />
-      <input
-        type="number"
-        min="1"
-        max="10"
-        value={numCards}
-        onChange={(e) => setNumCards(parseInt(e.target.value, 10))}
-        className="border p-2 w-20"
-      />
-      <button onClick={generateBingoCards} className="bg-green-500 text-white p-2 m-2">
-        Generer Bingo
-      </button>
-      <button onClick={saveAsPDF} className="bg-red-500 text-white p-2 m-2">
-        Lagre som PDF
-      </button>
-      <button onClick={saveAsJPG} className="bg-yellow-500 text-white p-2 m-2">
-        Lagre som JPG
-      </button>
-
-      <div className="flex flex-wrap justify-center mt-4">
-        {bingoCards.map((card, index) => (
-          <div
-            key={index}
-            id="bingoCard"
-            className="grid grid-cols-5 border-2 p-2 m-2 w-64 text-sm bg-white"
+    <div className="p-4 text-center max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">Spotify Musikk-Bingo Generator</h1>
+      
+      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+        <div className="flex flex-col md:flex-row mb-4">
+          <input
+            type="text"
+            placeholder="Spotify spilleliste-URL"
+            value={playlistUrl}
+            onChange={(e) => setPlaylistUrl(e.target.value)}
+            className="border p-2 flex-grow rounded"
+          />
+          <button 
+            onClick={fetchSpotifySongs} 
+            className="bg-blue-500 hover:bg-blue-600 text-white p-2 mt-2 md:mt-0 md:ml-2 rounded"
+            disabled={loading}
           >
-            {card.map((song, i) => (
-              <div
-                key={i}
-                className="border p-2 cursor-pointer hover:bg-gray-200"
-              >
-                {song}
-              </div>
-            ))}
+            {loading ? "Henter..." : "Hent sanger"}
+          </button>
+        </div>
+        
+        {songs.length > 0 && (
+          <div className="text-sm text-gray-600 mb-2">
+            Hentet {songs.length} sanger fra Spotify
           </div>
-        ))}
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Antall kort (1-50):</label>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              value={numCards}
+              onChange={(e) => setNumCards(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="border p-2 w-20 rounded"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Kortstørrelse:</label>
+            <select
+              value={cardSize}
+              onChange={(e) => setCardSize(e.target.value)}
+              className="border p-2 rounded"
+            >
+              <option value="small">Liten</option>
+              <option value="medium">Medium</option>
+              <option value="large">Stor</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Brettstørrelse:</label>
+            <select
+              value={gridSize}
+              onChange={(e) => setGridSize(e.target.value)}
+              className="border p-2 rounded"
+            >
+              <option value="3x3">3x3 (9 ruter)</option>
+              <option value="3x4">3x4 (12 ruter)</option>
+              <option value="4x4">4x4 (16 ruter)</option>
+              <option value="4x5">4x5 (20 ruter)</option>
+              <option value="5x5">5x5 (25 ruter)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+          <button 
+            onClick={generateBingoCards} 
+            className="bg-green-500 hover:bg-green-600 text-white p-2 rounded"
+            disabled={loading || songs.length < (getGridDimensions(gridSize).rows * getGridDimensions(gridSize).cols)}
+          >
+            Generer Bingokort
+          </button>
+          
+          {bingoCards.length > 0 && (
+            <button 
+              onClick={saveAllAsPDF} 
+              className="bg-red-500 hover:bg-red-600 text-white p-2 rounded"
+              disabled={loading}
+            >
+              Lagre alle som PDF
+            </button>
+          )}
+        </div>
       </div>
+
+      {loading && (
+        <div className="my-4 text-gray-600">
+          Laster... Vennligst vent.
+        </div>
+      )}
+
+      {bingoCards.length > 0 && (
+        <div className={`grid ${getGridClass()} gap-8 mt-6`}>
+          {bingoCards.map((card, cardIndex) => (
+            <div key={cardIndex} className="card-container relative">
+              <h2 className="text-lg font-bold mb-2">Kort #{cardIndex + 1}</h2>
+              <div
+                id={`bingoCard-${cardIndex}`}
+                className={`grid border-2 border-black p-4 ${getCardSizeClass()} mx-auto bg-white rounded shadow-md`}
+                style={{ 
+                  gridTemplateColumns: `repeat(${card.dimensions.cols}, 1fr)`,
+                  gridTemplateRows: `repeat(${card.dimensions.rows + 1}, auto)` // +1 for header
+                }}
+              >
+                {/* Header row */}
+                {generateHeader(card.dimensions.cols)}
+                
+                {/* Kortets innhold */}
+                {card.songs.map((song, cellIndex) => {
+                  const isSelected = selectedCells[`${cardIndex}-${cellIndex}`];
+                  
+                  return (
+                    <div
+                      key={cellIndex}
+                      className={`border p-2 cursor-pointer hover:bg-gray-100 ${
+                        isSelected ? 'bg-green-200' : ''
+                      } flex items-center justify-center text-center min-h-16`}
+                      onClick={() => toggleCell(cardIndex, cellIndex)}
+                    >
+                      {song}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => saveCardAsJPG(cardIndex)}
+                className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white p-1 rounded text-sm"
+                disabled={loading}
+              >
+                Lagre som JPG
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
