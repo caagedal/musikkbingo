@@ -1,0 +1,44 @@
+/* BingoGenerator.css */
+.max-w-a4 {
+  max-width: 595px; /* A4 bredde i punkter */
+}
+
+/* For utskrift */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .card-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* Sikrer lik størrelse på alle celler */
+.aspect-square {
+  aspect-ratio: 1 / 1;
+  min-height: 3rem;
+  position: relative;
+}
+
+/* Sørger for at teksten skaleres for å passe i cellen */
+.aspect-square > span {
+  display: block;
+  position: absolute;
+  inset: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(0.5rem, 1vw, 1rem);
+  line-height: 1.2;
+  hyphens: auto;
+  word-break: break-word;
+}
+
+/* Ensure overflowing text is handled */
+@media screen and (max-width: 767px) {
+  .aspect-square > span {
+    font-size: clamp(0.5rem, 2vw, 0.8rem);
+  }
+}
