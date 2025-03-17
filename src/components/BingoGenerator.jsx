@@ -10,7 +10,6 @@ export default function BingoGenerator() {
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedCells, setSelectedCells] = useState({});
-  const [cardSize, setCardSize] = useState("medium");
   const [gridSize, setGridSize] = useState("5x5");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -20,33 +19,17 @@ export default function BingoGenerator() {
     return { rows, cols };
   };
 
-  // Determine maximum text length based on card size and grid size
-  const getMaxLengthByCardSize = (cardSize, gridSize) => {
+  // Bestem maksimal tekstlengde basert på gridstørrelse - bruker large
+  const getMaxTextLength = (gridSize) => {
     const sizes = {
-      small: {
-        "3x3": 25,
-        "3x4": 22,
-        "4x4": 20,
-        "4x5": 18,
-        "5x5": 15
-      },
-      medium: {
-        "3x3": 35,
-        "3x4": 30,
-        "4x4": 28,
-        "4x5": 25,
-        "5x5": 22
-      },
-      large: {
-        "3x3": 45,
-        "3x4": 40,
-        "4x4": 35,
-        "4x5": 32,
-        "5x5": 28
-      }
+      "3x3": 45,
+      "3x4": 40,
+      "4x4": 35,
+      "4x5": 32,
+      "5x5": 28
     };
     
-    return sizes[cardSize]?.[gridSize] || 20; // Default 20 characters if not specified
+    return sizes[gridSize] || 28; // Standard 28 tegn hvis ikke spesifisert
   };
 
   // Helper function to manage text display without truncation
@@ -55,23 +38,14 @@ export default function BingoGenerator() {
     return title;
   };
 
-  // Determine the size of the cards
+  // Bestem størrelsen på kortene - alltid large nå
   const getCardSizeClass = () => {
-    switch (cardSize) {
-      case "small": return "w-64 card-small";
-      case "medium": return "w-80 card-medium";
-      case "large": return "w-full max-w-a4 card-large"; // A4-optimized size
-      default: return "w-80 card-medium"; // medium
-    }
+    return "w-full max-w-a4 card-large"; // A4-optimalisert størrelse
   };
 
-  // Determine number of cards per row in the layout
+  // Bestem antall kort per rad i layouten - alltid 1 rad (for large kort)
   const getGridClass = () => {
-    switch (cardSize) {
-      case "small": return "grid-cols-2 md:grid-cols-3";
-      case "large": return "grid-cols-1";
-      default: return "grid-cols-1 md:grid-cols-2"; // medium
-    }
+    return "grid-cols-1"; // For large-kortstørrelse
   };
 
   // Add a resize observer to adjust text sizes whenever window is resized
@@ -154,7 +128,7 @@ export default function BingoGenerator() {
 
   const fetchSpotifySongs = async () => {
     if (!playlistUrl) {
-      setErrorMessage("Enter a Spotify playlist URL");
+      setErrorMessage("Skriv inn en Spotify spilleliste-URL");
       return;
     }
 
@@ -170,7 +144,7 @@ export default function BingoGenerator() {
     const playlistID = playlistUrl.split("/playlist/")[1]?.split("?")[0];
 
     if (!playlistID) {
-      setErrorMessage("Invalid Spotify playlist URL");
+      setErrorMessage("Ugyldig Spotify spilleliste-URL");
       setLoading(false);
       return;
     }
@@ -206,10 +180,10 @@ export default function BingoGenerator() {
       setSongs(trackList);
       setErrorMessage("");
       
-      console.log(`Retrieved ${trackList.length} songs from Spotify`);
+      console.log(`Hentet ${trackList.length} sanger fra Spotify`);
     } catch (error) {
       console.error("Error fetching playlist:", error);
-      setErrorMessage(`Error fetching playlist: ${error.message}`);
+      setErrorMessage(`Feil ved henting av spillelisten: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -233,7 +207,7 @@ export default function BingoGenerator() {
     console.log(`Need ${requiredSongs} songs, have ${songs.length} songs`);
     
     if (songs.length < requiredSongs) {
-      setErrorMessage(`You need at least ${requiredSongs} songs! You have ${songs.length} songs.`);
+      setErrorMessage(`Du må ha minst ${requiredSongs} sanger! Du har ${songs.length} sanger.`);
       return;
     }
     
@@ -298,7 +272,7 @@ export default function BingoGenerator() {
 
   const saveAllAsPDF = async () => {
     if (bingoCards.length === 0) {
-      setErrorMessage("Generate bingo cards first!");
+      setErrorMessage("Generer bingokort først!");
       return;
     }
     
@@ -306,32 +280,32 @@ export default function BingoGenerator() {
       setLoading(true);
       const pdfDoc = await PDFDocument.create();
       
-      // Save each card as a page in the PDF
+      // Lagre hvert kort som en side i PDF-en
       for (let i = 0; i < bingoCards.length; i++) {
         const cardElement = document.getElementById(`bingoCard-${i}`);
         if (!cardElement) {
-          console.warn(`Could not find element with ID bingoCard-${i}`);
+          console.warn(`Fant ikke element med ID bingoCard-${i}`);
           continue;
         }
         
         const canvas = await html2canvas(cardElement, {
-          scale: 2, // Higher quality
+          scale: 2, // Høyere kvalitet
           useCORS: true,
           logging: false
         });
         
         const imgData = canvas.toDataURL("image/png");
-        // A4 format in points (595 x 842 points)
+        // A4 format i punkter (595 x 842 punkter)
         const page = pdfDoc.addPage([595, 842]);
         const pngImage = await pdfDoc.embedPng(imgData);
         
-        // Calculate correct size for the image - fit to A4
+        // Beregn riktig størrelse for bildet - tilpass til A4
         const { width, height } = pngImage.size();
         const aspectRatio = width / height;
         
         const pageWidth = 595;
         const pageHeight = 842;
-        const margin = 50; // 50 points margin
+        const margin = 50; // 50 punkter margin
         
         const maxWidth = pageWidth - (margin * 2);
         const maxHeight = pageHeight - (margin * 2);
@@ -356,53 +330,27 @@ export default function BingoGenerator() {
       const blob = new Blob([pdfBytes], { type: "application/pdf" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "music-bingo.pdf";
+      link.download = "musikkbingo.pdf";
       link.click();
       setErrorMessage("");
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      setErrorMessage("An error occurred while saving the PDF.");
+      console.error("Feil ved generering av PDF:", error);
+      setErrorMessage("Det oppstod en feil ved lagring av PDF.");
     } finally {
       setLoading(false);
     }
   };
 
-  const saveCardAsJPG = async (cardIndex) => {
-    const cardElement = document.getElementById(`bingoCard-${cardIndex}`);
-    if (!cardElement) {
-      setErrorMessage("Could not find the bingo board!");
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const canvas = await html2canvas(cardElement, {
-        scale: 2, // Higher quality
-        useCORS: true
-      });
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      
-      const link = document.createElement("a");
-      link.href = imgData;
-      link.download = `music-bingo-card-${cardIndex + 1}.jpg`;
-      link.click();
-      setErrorMessage("");
-    } catch (error) {
-      console.error("Error generating JPG:", error);
-      setErrorMessage("An error occurred while saving the image.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Funksjonen for å lagre JPG er fjernet og vi beholder bare PDF-eksport
 
   return (
     <div className="p-4 text-center max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Spotify Music Bingo Generator</h1>
+      <h1 className="text-3xl font-bold mb-8">Spotify Musikk-Bingo Generator</h1>
       
       <div className="generator-panel">
         <div className="mb-6">
           <div className="input-group">
-            <label className="input-label">Spotify Playlist URL</label>
+            <label className="input-label">Spotify spilleliste-URL</label>
             <div className="flex flex-col md:flex-row gap-2">
               <input
                 type="text"
@@ -416,21 +364,21 @@ export default function BingoGenerator() {
                 className="action-button whitespace-nowrap"
                 disabled={loading}
               >
-                {loading ? "Fetching..." : "Fetch Songs"}
+                {loading ? "Henter..." : "Hent sanger"}
               </button>
             </div>
           </div>
           
           {songs.length > 0 && (
             <div className="text-sm text-gray-600 mt-2">
-              Retrieved {songs.length} songs from Spotify
+              Hentet {songs.length} sanger fra Spotify
             </div>
           )}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="input-group">
-            <label className="input-label">Number of Cards (1-50)</label>
+            <label className="input-label">Antall kort (1-50)</label>
             <input
               type="number"
               min="1"
@@ -442,30 +390,17 @@ export default function BingoGenerator() {
           </div>
           
           <div className="input-group">
-            <label className="input-label">Card Size</label>
-            <select
-              value={cardSize}
-              onChange={(e) => setCardSize(e.target.value)}
-              className="select-field w-full"
-            >
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large</option>
-            </select>
-          </div>
-          
-          <div className="input-group">
-            <label className="input-label">Grid Size</label>
+            <label className="input-label">Brettstørrelse</label>
             <select
               value={gridSize}
               onChange={(e) => setGridSize(e.target.value)}
               className="select-field w-full"
             >
-              <option value="3x3">3x3 (9 cells)</option>
-              <option value="3x4">3x4 (12 cells)</option>
-              <option value="4x4">4x4 (16 cells)</option>
-              <option value="4x5">4x5 (20 cells)</option>
-              <option value="5x5">5x5 (25 cells)</option>
+              <option value="3x3">3x3 (9 ruter)</option>
+              <option value="3x4">3x4 (12 ruter)</option>
+              <option value="4x4">4x4 (16 ruter)</option>
+              <option value="4x5">4x5 (20 ruter)</option>
+              <option value="5x5">5x5 (25 ruter)</option>
             </select>
           </div>
         </div>
@@ -476,7 +411,7 @@ export default function BingoGenerator() {
             className="action-button"
             disabled={loading || songs.length < (getGridDimensions(gridSize).rows * getGridDimensions(gridSize).cols)}
           >
-            Generate Bingo Cards
+            Generer Bingokort
           </button>
           
           {bingoCards.length > 0 && (
@@ -485,7 +420,7 @@ export default function BingoGenerator() {
               className="action-button"
               disabled={loading}
             >
-              Save All as PDF
+              Lagre som PDF
             </button>
           )}
         </div>
@@ -497,7 +432,7 @@ export default function BingoGenerator() {
 
       {loading && (
         <div className="loading-indicator">
-          Loading... Please wait.
+          Laster... Vennligst vent.
         </div>
       )}
 
@@ -505,7 +440,7 @@ export default function BingoGenerator() {
         <div className={`grid ${getGridClass()} gap-8 mt-6`}>
           {bingoCards.map((card, cardIndex) => (
             <div key={cardIndex} className="card-container">
-              <h2 className="card-title">Card #{cardIndex + 1}</h2>
+              <h2 className="card-title">Kort #{cardIndex + 1}</h2>
               <div
                 id={`bingoCard-${cardIndex}`}
                 className={`${getCardSizeClass()} mx-auto bingo-card`}
@@ -541,13 +476,7 @@ export default function BingoGenerator() {
                 </div>
               </div>
               
-              <button
-                onClick={() => saveCardAsJPG(cardIndex)}
-                className="action-button mt-4"
-                disabled={loading}
-              >
-                Save as JPG
-              </button>
+              {/* JPG-knappen er fjernet */}
             </div>
           ))}
         </div>
